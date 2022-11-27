@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
 
@@ -36,18 +36,37 @@ async function run() {
         const resaleproductCategoryCollection = client.db('resalebd').collection('productCategory');
         const usersCollection = client.db('resalebd').collection('users');
         const bookingsCollection = client.db('resalebd').collection('bookings');
+        const productsCollection = client.db('resalebd').collection('products');
         app.get('/products', async (req, res) => {
             const query = {};
             const result = await resaleproductCollection.find(query).toArray();
             res.send(result)
         })
 
-
         app.get('/category/:id', async (req, res) => {
             const id = req.params.id;
             const query = { id: id };
             const result = await resaleproductCategoryCollection.find(query).toArray();
             res.send(result);
+        })
+
+        app.get('/users', async (req, res) => {
+            const query = {};
+            const user = await usersCollection.find(query).toArray();
+            res.send(user);
+        })
+        app.get('/users/admin/:email', async(req, res)=>{
+            const email = req.params.email;
+            const query = {email: email};
+            const user = await usersCollection.findOne(query);
+            res.send({isAdmin: user?.role === 'admin'});
+        })
+
+        app.get('/users/seller/:email', async(req, res)=>{
+            const email = req.params.email;
+            const query = {email: email};
+            const user = await usersCollection.findOne(query);
+            res.send({isSeller: user?.select === 'seller'});
         })
 
         app.post('/users', async (req, res) => {
@@ -59,10 +78,10 @@ async function run() {
         app.get('/jwt', async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
-            const user = await usersCollection.find(query).toArray();
+            const user = await usersCollection.findOne(query);
             if (user) {
-                const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, { expiresIn: '24h' })
-                res.send({ accessToken: token })
+                const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, { expiresIn: '12h' })
+                return res.send({ accessToken: token })
             }
             res.status(403).send({ accessToken: '' })
         })
@@ -71,8 +90,8 @@ async function run() {
             const email = req.query.email;
             const decodedEmail = req.decoded.email;
             const query = { email: email };
-            if(email !== decodedEmail){
-               return res.status(403).send({message: 'forbidden access'})
+            if (email !== decodedEmail) {
+                return res.status(403).send({ message: 'forbidden access' })
             }
             const booking = await bookingsCollection.find(query).toArray();
             res.send(booking);
@@ -81,6 +100,25 @@ async function run() {
         app.post('/bookings', async (req, res) => {
             const bookings = req.body
             const result = await bookingsCollection.insertOne(bookings);
+            res.send(result);
+        })
+
+        app.get('/myproducts', async(req, res)=>{
+            const query = {};
+            const myproduct = await productsCollection.find(query).toArray();
+            res.send(myproduct);
+        })
+
+        app.post('/products', async(req, res)=>{
+            const product = req.body;
+            const result = await productsCollection.insertOne(product);
+            res.send(result);
+        })
+
+        app.delete('/myproduct/:id', async(req, res) =>{
+            const id = req.params.id;
+            const query = {_id: ObjectId(id)};
+            const result = await productsCollection.deleteOne(query);
             res.send(result);
         })
     }
