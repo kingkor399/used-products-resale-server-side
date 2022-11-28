@@ -38,6 +38,8 @@ async function run() {
         const usersCollection = client.db('resalebd').collection('users');
         const bookingsCollection = client.db('resalebd').collection('bookings');
         const productsCollection = client.db('resalebd').collection('products');
+        const paymentsCollection = client.db('resalebd').collection('payments');
+
         app.get('/products', async (req, res) => {
             const query = {};
             const result = await resaleproductCollection.find(query).toArray();
@@ -68,6 +70,12 @@ async function run() {
             const query = { email: email };
             const user = await usersCollection.findOne(query);
             res.send({ isSeller: user?.select === 'seller' });
+        })
+
+        app.get('/sellers', async(req, res)=>{
+            const query = {select: 'seller'};
+            const sellers = await usersCollection.find(query).toArray();
+            res.send(sellers);
         })
 
         app.post('/users', async (req, res) => {
@@ -137,9 +145,16 @@ async function run() {
             res.send(result);
         })
 
+        app.delete('/sellers/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await usersCollection.deleteOne(query);
+            res.send(result);
+        })
+
         app.post('/create/payment/intent', async (req, res) => {
             const payment = req.body;
-            const price = payment.price;
+            const price = payment.price.split(',').join('');
             const amount = price * 100;
 
             const paymentIntent = await stripe.paymentIntents.create({
@@ -152,6 +167,12 @@ async function run() {
             res.send({
                 clientSecret: paymentIntent.client_secret,
             });
+        })
+
+        app.post('/payments', async(req, res) =>{
+            const payment = req.body;
+            const result = await paymentsCollection.insertOne(payment);
+            res.send(result);
         })
     }
 
@@ -168,5 +189,3 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
     console.log(`resale server api is running on: ${port}`)
 })
-
-// ab
