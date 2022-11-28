@@ -190,4 +190,3 @@ app.listen(port, () => {
     console.log(`resale server api is running on: ${port}`)
 })
 
-// Abdur
