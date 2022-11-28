@@ -3,6 +3,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
+const stripe = require('stripe')(process.env.STRIPE_SECRET);
 const port = process.env.PORT || 5000;
 
 const app = express();
@@ -55,18 +56,18 @@ async function run() {
             const user = await usersCollection.find(query).toArray();
             res.send(user);
         })
-        app.get('/users/admin/:email', async(req, res)=>{
+        app.get('/users/admin/:email', async (req, res) => {
             const email = req.params.email;
-            const query = {email: email};
+            const query = { email: email };
             const user = await usersCollection.findOne(query);
-            res.send({isAdmin: user?.role === 'admin'});
+            res.send({ isAdmin: user?.role === 'admin' });
         })
 
-        app.get('/users/seller/:email', async(req, res)=>{
+        app.get('/users/seller/:email', async (req, res) => {
             const email = req.params.email;
-            const query = {email: email};
+            const query = { email: email };
             const user = await usersCollection.findOne(query);
-            res.send({isSeller: user?.select === 'seller'});
+            res.send({ isSeller: user?.select === 'seller' });
         })
 
         app.post('/users', async (req, res) => {
@@ -103,30 +104,54 @@ async function run() {
             res.send(result);
         })
 
-        app.get('/myproducts', async(req, res)=>{
+        app.get('/bookings/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await bookingsCollection.findOne(query);
+            res.send(result);
+        })
+
+        app.get('/myproducts', async (req, res) => {
             const query = {};
             const myproduct = await productsCollection.find(query).toArray();
             res.send(myproduct);
         })
 
-        app.post('/products', async(req, res)=>{
+        app.post('/products', async (req, res) => {
             const product = req.body;
             const result = await productsCollection.insertOne(product);
             res.send(result);
         })
 
-        app.delete('/myproduct/:id', async(req, res) =>{
+        app.delete('/myproduct/:id', async (req, res) => {
             const id = req.params.id;
-            const query = {_id: ObjectId(id)};
+            const query = { _id: ObjectId(id) };
             const result = await productsCollection.deleteOne(query);
             res.send(result);
         })
 
-        app.delete('/alluser/:id', async(req, res) =>{
+        app.delete('/alluser/:id', async (req, res) => {
             const id = req.params.id;
-            const query = {_id: ObjectId(id)};
+            const query = { _id: ObjectId(id) };
             const result = await usersCollection.deleteOne(query);
             res.send(result);
+        })
+
+        app.post('/create/payment/intent', async (req, res) => {
+            const payment = req.body;
+            const price = payment.price;
+            const amount = price * 100;
+
+            const paymentIntent = await stripe.paymentIntents.create({
+                currency: 'usd',
+                amount: amount,
+                "payment_method_types": [
+                    "card"
+                ]
+            });
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
         })
     }
 
